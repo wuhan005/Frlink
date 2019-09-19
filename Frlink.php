@@ -8,7 +8,11 @@ Author: John Wu
 Author URI: https://github.red
 */
 
+defined( 'ABSPATH' ) or exit;
+
 define('PLUGIN_URL', plugin_dir_url(__FILE__));
+
+require_once('Table.php');
 
 //初始化，添加数据
 add_option(
@@ -35,7 +39,7 @@ function short_code() {
         <a href="'. $value['url'] .'" target="_blank">
             <div class="uk-grid-small uk-flex-middle uk-grid">
                 <div class="uk-width-auto uk-first-column">
-                    <img class="uk-border-circle" width="50" height="50" style="height: 50px;" src="'. $value['image'] .'">
+                    <img class="uk-border-circle" width="50" height="50" style="height: 50px;" src="'. $value['avatar'] .'">
                 </div>
                 <div class="uk-width-expand">
                     <h3 class="uk-card-title uk-margin-remove-bottom">'. $value['name'] .'</h3>
@@ -52,88 +56,41 @@ function short_code() {
 }
 
 // 左侧显示插件菜单
-add_action('admin_menu', 'add_main_menu');
-function add_main_menu() {
+add_action('admin_menu', 'frlink_admin_menu');
+function frlink_admin_menu() {
     add_menu_page( 
+        __('查看友链'),     //展开菜单名
         __('友链管理'),     //主菜单名
-        __('友链管理'),     //展开菜单名
         'administrator',   //权限
-        __FILE__,
-        'main_page',     //显示界面
+        'frlink_admin_panel',
+        'frlink_main_page',     //显示界面
         'dashicons-admin-links',      //图标
         30      //位置
     );
+    //子菜单
+    add_submenu_page(
+        'frlink_admin_panel', 
+        __('添加'),
+        __('添加'),
+        'activate_plugins',
+        'frlink_add',
+        'frlink_add');
+
+    add_submenu_page(
+        NULL,
+        __('编辑友链'),
+        __('编辑友链'),
+        'activate_plugins',
+        'frlink_edit',
+        'frlink_edit'
+    );
 }
 
-function main_page(){
-
-    // jQuery
-    wp_enqueue_script('jquery');
-    // 加入媒体上传
-    wp_enqueue_media();
-
-    wp_register_style('panelCSS', PLUGIN_URL . 'css/Panel.css');  //加载 css 文件
-    wp_enqueue_style('panelCSS');
-
-    //添加
-    if($_POST['do'] === 'add'){
-        if(isset($_POST['site_name'], $_POST['image_url'], $_POST['site_url'], $_POST['site_summary'])
-        AND $_POST['site_name'] !== '' AND $_POST['image_url'] !== '' AND $_POST['site_url'] !== '' AND $_POST['site_summary'] !== ''
-        ){
-            $data = array(
-                'name' => sanitize_text_field($_POST['site_name']),
-                'image' => sanitize_text_field($_POST['image_url']),
-                'url' => sanitize_text_field($_POST['site_url']),
-                'summary' => sanitize_text_field($_POST['site_summary'])
-            );
-
-            $flink_data = get_option('flink_data');
-            $flink_data[] = $data;
-
-            //更新值
-            update_option(
-                'flink_data',
-                $flink_data
-            );
-            
-            echo('<div id="message" class="updated"><p><strong>添加成功！</strong></p></div>');
-
-        }else{
-            echo('<div id="message" class="error"><p><strong>字段为空，添加失败！</strong></p></div>');
-        }
-    }
-
-    //修改
-    if($_POST['do'] === 'edit'){
-        if(isset($_POST['id'], $_POST['site_name'], $_POST['image_url'], $_POST['site_url'], $_POST['site_summary'])
-        AND is_numeric($_POST['id']) AND $_POST['site_name'] !== '' AND $_POST['image_url'] !== '' AND $_POST['site_url'] !== '' AND $_POST['site_summary'] !== ''
-        ){
-            $data = array(
-                'name' => sanitize_text_field($_POST['site_name']),
-                'image' => sanitize_text_field($_POST['image_url']),
-                'url' => sanitize_text_field($_POST['site_url']),
-                'summary' => sanitize_text_field($_POST['site_summary'])
-            );
-
-            $flink_data = get_option('flink_data');
-            $flink_data[$_POST['id']] = $data;
-
-            //更新值
-            update_option(
-                'flink_data',
-                $flink_data
-            );
-            
-            echo('<div id="message" class="updated"><p><strong>更新成功！</strong></p></div>');
-
-        }else{
-            echo('<div id="message" class="error"><p><strong>字段为空，更新失败！</strong></p></div>');
-        }
-    }
-    
+// 后台管理主页
+function frlink_main_page(){
     //删除
     if($_GET['action'] === 'delete'){
-        if(isset($_GET['id']) && $_GET['id'] !== '' && is_numeric($_GET['id'])){
+        if(isset($_GET['id']) && $_GET['id'] !== ''){
             $flink_data = get_option('flink_data');
             if(isset($flink_data[$_GET['id']])){    //判断索引是否存在
                 unset($flink_data[$_GET['id']]);
@@ -147,18 +104,69 @@ function main_page(){
         }
     }
 
-    //选择进行编辑
-    $editValue = [];
-
-    if($_GET['action'] === 'edit'){
-        if(isset($_GET['id']) && $_GET['id'] !== '' && is_numeric($_GET['id'])){
-            $flink_data = get_option('flink_data');
-            if(isset($flink_data[$_GET['id']])){    //判断索引是否存在
-                $editValue = $flink_data[$_GET['id']];
-                $editValue['id'] = $_GET['id'];
-            }
-        }
-    }
+    // 列表
+    $frink_table = new Frlink_List_Table();
+    $frink_table->prepare_items();
 
     require_once('Panel.php');
+}
+
+// 友链添加页面
+function frlink_add(){
+    require_once('Add.php');
+}
+
+function add_new_frlink(){
+    if(isset($_POST['site_name'], $_POST['avatar'], $_POST['url'], $_POST['summary']) AND $_POST['site_name'] !== '' AND $_POST['avatar'] !== '' AND $_POST['url'] !== '' AND $_POST['summary'] !== ''){
+        $id = wp_generate_uuid4();
+        $data = array(
+            'id' => $id,
+            'name' => sanitize_text_field($_POST['site_name']),
+            'avatar' => sanitize_text_field($_POST['avatar']),
+            'url' => sanitize_text_field($_POST['url']),
+            'summary' => sanitize_text_field($_POST['summary'])
+        );
+        $flink_data = get_option('flink_data');
+        $flink_data[$id] = $data;
+        //更新值
+        update_option(
+            'flink_data',
+            $flink_data
+        );
+    }
+}
+
+// 友链修改页面
+function frlink_edit(){
+    if (isset($_POST['submit'])) {
+        edit_frlink();
+        echo('<div class="updated"><h4>修改成功！</h4></div>');
+    }
+
+    if(isset($_GET['id']) && $_GET['id'] !== ''){
+        $flink_data = get_option('flink_data');
+        if(isset($flink_data[$_GET['id']])){    //判断索引是否存在
+            $editValue = $flink_data[$_GET['id']];
+        }
+    }
+    require_once('EditData.php');
+}
+
+function edit_frlink(){
+    if(isset($_POST['id'], $_POST['site_name'], $_POST['avatar'], $_POST['url'], $_POST['summary']) AND $_POST['site_name'] !== '' AND $_POST['avatar'] !== '' AND $_POST['url'] !== '' AND $_POST['summary'] !== ''){
+        $data = array(
+            'id' => $_POST['id'],
+            'name' => sanitize_text_field($_POST['site_name']),
+            'avatar' => sanitize_text_field($_POST['avatar']),
+            'url' => sanitize_text_field($_POST['url']),
+            'summary' => sanitize_text_field($_POST['summary'])
+        );
+        $flink_data = get_option('flink_data');
+        $flink_data[$_POST['id']] = $data;
+        //更新值
+        update_option(
+            'flink_data',
+            $flink_data
+        );
+    }
 }

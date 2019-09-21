@@ -3,7 +3,7 @@
 Plugin Name: Frlink - 友链管理
 Plugin URI: https://github.red/frlink
 Description: 更美观，更易于管理的友链。
-Version: 1.0.0
+Version: 1.0.1
 Author: John Wu
 Author URI: https://github.red
 */
@@ -49,7 +49,7 @@ function short_code() {
         </a>
         </div>');
     }
-
+  
     $rawHTML .= '</div>';
 
     return $rawHTML;

@@ -1,3 +1,4 @@
+<?php defined( 'ABSPATH' ) or exit; ?>
 <div class="wrap">
     <h2>Frlink - 添加友链
     <a class="add-new-h2" href="<?php echo get_admin_url(get_current_blog_id(), 'admin.php?page=frlink_admin_panel');?>">回到友链管理</a>

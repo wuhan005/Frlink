@@ -1,4 +1,6 @@
 <?php
+defined( 'ABSPATH' ) or exit;
+
 if (!class_exists('WP_List_Table')) {
     require_once(ABSPATH . 'wp-admin/includes/class-wp-list-table.php');
 }
@@ -32,7 +34,7 @@ class Frlink_List_Table extends WP_List_Table {
         return get_option('flink_data');
     }
 
-    public function get_pagenum(){
+    public function get_count(){
         return count(get_option('flink_data'));
     }
 
@@ -49,12 +51,12 @@ class Frlink_List_Table extends WP_List_Table {
         return '<img alt="" src="' . $item['avatar'] . '" class="avatar avatar-32 photo" height="50" width="50">';
     }
 
-    function get_bulk_actions() {
-        $actions = array(
-            'delete'    => '删除'
-        );
-        return $actions;
-    }
+    // function get_bulk_actions() {
+    //     $actions = array(
+    //         'delete'    => '删除'
+    //     );
+    //     return $actions;
+    // }
 
     function prepare_items() {
         // $this->_column_headers = $this->get_column_info();
@@ -72,7 +74,7 @@ class Frlink_List_Table extends WP_List_Table {
         $this->items = $this->get_data( $per_page, $current_page );
 
         $this->set_pagination_args(array(
-            'total_items' => 0, 
+            'total_items' => $this->get_count(), 
             'per_page' => $per_page,
             'total_pages' => 1
         ));
